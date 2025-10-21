@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html >
+<!--From https://codepen.io/frytyler/pen/EGdtg-->
+<head>
+  <meta charset="UTF-8">
+  <title>Model_prematures</title>
+  <link href='https://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Arimo' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Hind:300' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+</head>
+
+<body>
+ <div class="login">
+	<h1>Prevension à un accouchement prématuré chez les femmes </h1>
+
+     <!-- Main Input For Receiving Query to our ML -->
+    <form action="{{ url_for('predict')}}"method="post">
+    	<input type="text" name="GEST" placeholder="L'âge gestationnel en semaines à l'entrée dans l'étude" required="required" />
+        <input type="text" name="DILATE" placeholder="La dilatation du col en cm" required="required" />
+		<input type="text" name="EFFACE" placeholder="L’effacement du col (en %) " required="required" />
+		<input type="text" name="CONSIS" placeholder="La consistance du col (1= mou, 2= moyen, 3=ferme)" required="required" />
+		<input type="text" name="CONTR" placeholder="La présence (=1) ou non (=2) de contraction" required="required" />
+		<input type="text" name="MEMBRAN" placeholder="Les membranes rupturées (=1) ou non (=2) ou incertain (=3)" required="required" />
+		<input type="text" name="AGE" placeholder="L’âge de la patiente" required="required" />
+		<input type="text" name="STRAT" placeholder="Période de la grossesse" required="required" />
+		<input type="text" name="GRAVID" placeholder="La gestité (nombre de grossesses antérieures y compris celle en cours)" required="required" />
+		<input type="text" name="PARIT" placeholder="La parité (nombre de grossesses à terme antérieures)" required="required" />
+		<input type="text" name="DIAB" placeholder="La présence (=1) ou non (=2) d'un problème de diabète, ou valeur manquante (=9)" required="required" />
+		<input type="text" name="TRANSF" placeholder="Le transfert (1) ou non (2) vers un hôpital en soins spécialisés" required="required" />
+		<input type="text" name="GEMEL" placeholder="Grossesse simple (=1) ou multiple (=2) " required="required" />
+
+        <button type="submit" class="btn btn-primary btn-block btn-large">Predict</button>
+    </form>
+
+   <br>
+   <br>
+   {{ prediction_text }}
+
+ </div>
+
+
+</body>
+</html>
