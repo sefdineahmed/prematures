@@ -46,7 +46,7 @@ Après optimisation des hyperparamètres, le modèle présente les résultats su
 
 1. **Cloner le dépôt :**
 ```bash
-git clone [https://github.com/votre-u/projet-prematures.git](https://github.com/sefdineahmed/prematures.git)
+git clone https://github.com/votre-u/projet-prematures.git
 cd prematures
 
 ```
