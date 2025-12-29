@@ -139,47 +139,53 @@ elif page == "Diagnostic Patient":
                 st.success(f"### ✅ Risque de Prématurité Faible ({probability:.1%})")
                 st.info("Le patient ne présente pas de signes de travail prématuré imminent selon les critères saisis.")
 
-# --- PAGE 3 : ANALYSE DE GROUPE (VERSION ROBUSTE) ---
+ # --- PAGE 3 : ANALYSE DE GROUPE (RÉALIGNEMENT AUTOMATIQUE) ---
 elif page == "Analyse de Groupe":
     st.title("📂 Analyse par Lot (CSV)")
-    st.write("Importez un fichier CSV contenant les variables cliniques.")
     
-    up_file = st.file_uploader("Fichier CSV", type="csv")
+    up_file = st.file_uploader("Importer le fichier des patientes", type="csv")
     
     if up_file and model:
-        # Lecture flexible (détecte si c'est séparé par , ou ;)
         try:
+            # 1. Lecture du fichier
             df_input = pd.read_csv(up_file, sep=None, engine='python')
-            # Nettoyage : enlever les espaces autour des noms de colonnes
-            df_input.columns = df_input.columns.str.strip().str.upper()
             
-            # Liste exacte que le modèle attend (Ordre alphabétique standard de Sklearn)
-            expected_columns = [
-                'AGE', 'CONSIS', 'CONTR', 'DIAB', 'DILATE', 'EFFACE', 
-                'GEMEL', 'GEST', 'GRAVID', 'MEMBRAN', 'PARIT', 'TRANSF'
-            ]
+            # 2. Nettoyage des noms de colonnes (Majuscules et sans espaces)
+            df_input.columns = df_input.columns.str.strip().upper()
             
-            # Vérification de la présence des colonnes
-            missing_cols = [c for c in expected_columns if c not in df_input.columns]
-            
-            if missing_cols:
-                st.error(f"Colonnes manquantes dans votre fichier : {missing_cols}")
-                st.info(f"Colonnes trouvées : {list(df_input.columns)}")
+            # 3. RÉALIGNEMENT DYNAMIQUE
+            # On récupère l'ordre exact que le modèle a appris lors du "fit"
+            if hasattr(model, 'feature_names_in_'):
+                expected_order = list(model.feature_names_in_)
             else:
-                # Réorganiser les colonnes pour le modèle
-                df_to_predict = df_input[expected_columns]
+                # Si le modèle n'a pas enregistré les noms, on utilise l'ordre manuel
+                expected_order = ['GEST', 'DILATE', 'EFFACE', 'CONSIS', 'CONTR', 'MEMBRAN', 
+                                  'AGE', 'GRAVID', 'PARIT', 'DIAB', 'TRANSF', 'GEMEL']
+            
+            # On vérifie si toutes les colonnes requises sont là
+            missing = [c for c in expected_order if c not in df_input.columns]
+            
+            if missing:
+                st.error(f"Il manque des colonnes dans votre fichier : {missing}")
+            else:
+                # --- LA MAGIE EST ICI ---
+                # On crée une copie avec l'ordre EXACT attendu par le modèle
+                df_for_model = df_input[expected_order]
                 
-                preds = model.predict(df_to_predict)
-                probs = model.predict_proba(df_to_predict)[:, 1]
+                # 4. Prédiction
+                preds = model.predict(df_for_model)
+                probs = model.predict_proba(df_for_model)[:, 1]
                 
+                # 5. Affichage des résultats originaux avec le verdict
                 df_input['DIAGNOSTIC'] = ["🚨 RISQUE" if p == 1 else "✅ STABLE" for p in preds]
                 df_input['PROBABILITÉ (%)'] = (probs * 100).round(2)
                 
-                st.subheader("Résultats de l'Analyse")
+                st.success("✅ Analyse terminée avec succès !")
                 st.dataframe(df_input.style.background_gradient(subset=['PROBABILITÉ (%)'], cmap='YlOrRd'))
                 
-                csv_data = df_input.to_csv(index=False).encode('utf-8')
-                st.download_button("Télécharger le rapport", csv_data, "resultats_cliniques.csv", "text/csv")
+                # Téléchargement
+                csv = df_input.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Télécharger le rapport", csv, "resultats.csv", "text/csv")
                 
         except Exception as e:
-            st.error(f"Erreur de lecture du fichier : {e}")
+            st.error(f"Erreur lors de l'analyse : {e}")
