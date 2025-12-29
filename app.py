@@ -139,41 +139,47 @@ elif page == "Diagnostic Patient":
                 st.success(f"### ✅ Risque de Prématurité Faible ({probability:.1%})")
                 st.info("Le patient ne présente pas de signes de travail prématuré imminent selon les critères saisis.")
 
-# --- PAGE 3 : ANALYSE DE GROUPE (CORRIGÉE) ---
+# --- PAGE 3 : ANALYSE DE GROUPE (VERSION ROBUSTE) ---
 elif page == "Analyse de Groupe":
     st.title("📂 Analyse par Lot (CSV)")
-    st.write("Importez un fichier CSV contenant les 12 variables cliniques.")
+    st.write("Importez un fichier CSV contenant les variables cliniques.")
     
     up_file = st.file_uploader("Fichier CSV", type="csv")
     
     if up_file and model:
-        df_input = pd.read_csv(up_file)
-        
-        # Liste exacte des colonnes attendues par votre modèle (Ordre alphabétique souvent par défaut)
-        # Vérifiez cet ordre avec model.feature_names_in_ si disponible
-        expected_columns = [
-            'AGE', 'CONSIS', 'CONTR', 'DIAB', 'DILATE', 'EFFACE', 
-            'GEMEL', 'GEST', 'GRAVID', 'MEMBRAN', 'PARIT', 'TRANSF'
-        ]
-        
+        # Lecture flexible (détecte si c'est séparé par , ou ;)
         try:
-            # Réordonner les colonnes du CSV pour correspondre au modèle
-            df_reordered = df_input[expected_columns]
+            df_input = pd.read_csv(up_file, sep=None, engine='python')
+            # Nettoyage : enlever les espaces autour des noms de colonnes
+            df_input.columns = df_input.columns.str.strip().str.upper()
             
-            preds = model.predict(df_reordered)
-            probs = model.predict_proba(df_reordered)[:, 1]
+            # Liste exacte que le modèle attend (Ordre alphabétique standard de Sklearn)
+            expected_columns = [
+                'AGE', 'CONSIS', 'CONTR', 'DIAB', 'DILATE', 'EFFACE', 
+                'GEMEL', 'GEST', 'GRAVID', 'MEMBRAN', 'PARIT', 'TRANSF'
+            ]
             
-            df_input['Diagnostic'] = ["🚨 Risque" if p == 1 else "✅ Stable" for p in preds]
-            df_input['Probabilité_Risque'] = (probs * 100).round(2)
+            # Vérification de la présence des colonnes
+            missing_cols = [c for c in expected_columns if c not in df_input.columns]
             
-            st.subheader("Résultats de l'Analyse")
-            st.dataframe(df_input.style.background_gradient(subset=['Probabilité_Risque'], cmap='YlOrRd'))
-            
-            csv_data = df_input.to_csv(index=False).encode('utf-8')
-            st.download_button("Télécharger le rapport", csv_data, "resultats.csv", "text/csv")
-            
-        except KeyError as e:
-            st.error(f"Erreur : Le fichier CSV ne contient pas la colonne {e}")
-            st.info(f"Colonnes attendues : {', '.join(expected_columns)}")
+            if missing_cols:
+                st.error(f"Colonnes manquantes dans votre fichier : {missing_cols}")
+                st.info(f"Colonnes trouvées : {list(df_input.columns)}")
+            else:
+                # Réorganiser les colonnes pour le modèle
+                df_to_predict = df_input[expected_columns]
+                
+                preds = model.predict(df_to_predict)
+                probs = model.predict_proba(df_to_predict)[:, 1]
+                
+                df_input['DIAGNOSTIC'] = ["🚨 RISQUE" if p == 1 else "✅ STABLE" for p in preds]
+                df_input['PROBABILITÉ (%)'] = (probs * 100).round(2)
+                
+                st.subheader("Résultats de l'Analyse")
+                st.dataframe(df_input.style.background_gradient(subset=['PROBABILITÉ (%)'], cmap='YlOrRd'))
+                
+                csv_data = df_input.to_csv(index=False).encode('utf-8')
+                st.download_button("Télécharger le rapport", csv_data, "resultats_cliniques.csv", "text/csv")
+                
         except Exception as e:
-            st.error(f"Une erreur est survenue : {e}")
+            st.error(f"Erreur de lecture du fichier : {e}")
