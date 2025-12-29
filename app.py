@@ -25,7 +25,7 @@ st.markdown("""
 # --- CHARGEMENT DU MODÈLE ---
 @st.cache_resource
 def load_model():
-    with open("prematurite_model.pkl", "rb") as f:
+    with open("model.pkl", "rb") as f:
         return pickle.load(f)
 
 try:
