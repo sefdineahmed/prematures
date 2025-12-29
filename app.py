@@ -40,7 +40,7 @@ st.markdown("""
 # --- CHARGEMENT DU MODÈLE ---
 @st.cache_resource
 def load_model():
-    model_path = "prematurite_model.pkl"
+    model_path = "model.pkl"
     if os.path.exists(model_path):
         with open(model_path, "rb") as f:
             return pickle.load(f)
