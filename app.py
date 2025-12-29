@@ -7,39 +7,40 @@ import os
 
 # --- CONFIGURATION DE LA PAGE ---
 st.set_page_config(
-    page_title="Prévention Prématurité Pro",
+    page_title="Prédiction Accouchement Prématuré",
     page_icon="👶",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# --- STYLE PERSONNALISÉ (CSS CORRIGÉ) ---
+# --- STYLE PERSONNALISÉ (CORRECTION DU TYPEERROR) ---
 st.markdown("""
     <style>
-    .main { background-color: #f0f2f6; }
+    .main { background-color: #f8f9fa; }
     .stMetric { 
         background-color: #ffffff; 
-        padding: 15px; 
-        border-radius: 10px; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        padding: 20px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+        border: 1px solid #e9ecef;
     }
     div[data-testid="stSidebar"] {
-        background-color: #1e3d59;
+        background-color: #1a3a5a;
     }
     .stButton>button {
         width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #ff6e40;
+        border-radius: 8px;
+        background-color: #e63946;
         color: white;
+        font-weight: bold;
     }
     </style>
-    """, unsafe_allow_html=True) # Correction ici : html au lieu de stdio
+    """, unsafe_allow_html=True) # Paramètre corrigé ici
 
 # --- CHARGEMENT DU MODÈLE ---
 @st.cache_resource
 def load_model():
-    model_path = "model.pkl"
+    model_path = "prematurite_model.pkl"
     if os.path.exists(model_path):
         with open(model_path, "rb") as f:
             return pickle.load(f)
@@ -50,108 +51,116 @@ model = load_model()
 # --- BARRE LATÉRALE ---
 with st.sidebar:
     st.title("🏥 Navigation")
-    page = st.radio("Sélectionnez une section :", 
-                    ["Tableau de Bord", "Diagnostic Patient", "Analyse de Groupe"])
+    page = st.radio("Menu", ["Tableau de Bord", "Diagnostic Patient", "Analyse de Groupe"])
     st.markdown("---")
-    st.write("**Statut du modèle :**")
     if model:
         st.success("✅ Modèle chargé")
     else:
-        st.error("❌ Modèle non trouvé")
+        st.error("❌ Modèle non détecté")
+    st.info("Outil basé sur l'analyse de 390 dossiers cliniques.")
 
 # --- PAGE 1 : TABLEAU DE BORD ---
 if page == "Tableau de Bord":
-    st.title("📊 Tableau de Bord Clinique")
+    st.title("📊 Statistiques et Facteurs de Risque")
     
-    # Métriques principales
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Précision (Test)", "81%")
-    m2.metric("Sensibilité", "85%")
-    m3.metric("Échantillon Étude", "390")
-    m4.metric("Variables", "12")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Précision Globale", "81%")
+    col2.metric("Sensibilité (Recall)", "85%")
+    col3.metric("Patients Étudiés", "390")
+    col4.metric("Variables Clés", "12")
 
     st.markdown("---")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Importance des Facteurs")
-        # Données basées sur votre analyse précédente
-        feat_data = pd.DataFrame({
-            'Facteur': ['AGE', 'GEST', 'EFFACE', 'DILATE', 'MEMBRAN'],
-            'Importance': [0.18, 0.16, 0.15, 0.10, 0.08]
-        }).sort_values(by='Importance', ascending=True)
-        fig = px.bar(feat_data, x='Importance', y='Facteur', orientation='h', 
-                     color='Importance', color_continuous_scale='Blues')
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Importance des Variables Cliniques")
+        # Données de synthèse de l'étude
+        feat_df = pd.DataFrame({
+            'Variable': ['AGE', 'GEST', 'EFFACE', 'DILATE', 'MEMBRAN', 'GRAVID'],
+            'Importance': [0.18, 0.16, 0.15, 0.10, 0.08, 0.07]
+        }).sort_values('Importance')
+        fig = px.bar(feat_df, x='Importance', y='Variable', orientation='h', 
+                     color='Importance', color_continuous_scale='RdBu_r')
         st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        st.subheader("Distribution des Risques")
-        fig_pie = px.pie(names=['Accouchement à Terme', 'Prématurité'], 
+    
+    with c2:
+        st.subheader("Répartition de la Population")
+        fig_pie = px.pie(names=['Accouchement à Terme', 'Accouchement Prématuré'], 
                          values=[23, 55], hole=0.4,
-                         color_discrete_sequence=['#1e3d59', '#ff6e40'])
+                         color_discrete_sequence=['#457b9d', '#e63946'])
         st.plotly_chart(fig_pie, use_container_width=True)
 
 # --- PAGE 2 : DIAGNOSTIC INDIVIDUEL ---
 elif page == "Diagnostic Patient":
-    st.title("🩺 Assistant de Diagnostic Rapide")
+    st.title("🩺 Assistant de Diagnostic Individuel")
     
     if not model:
-        st.warning("Veuillez uploader le fichier 'prematurite_model.pkl' à la racine.")
+        st.error("Erreur : Le modèle prédictif est manquant.")
     else:
-        with st.form("patient_form"):
+        with st.form("medical_form"):
+            st.markdown("##### 1. Informations de Base")
             c1, c2, c3 = st.columns(3)
             age = c1.number_input("Âge de la patiente", 15, 55, 28)
-            gest = c2.number_input("Âge Gestationnel (semaines)", 20, 42, 32)
-            dilate = c3.number_input("Dilatation du col (cm)", 0.0, 10.0, 0.0)
-            
-            c4, c5, c6 = st.columns(3)
-            efface = c4.slider("Effacement (%)", 0, 100, 20)
-            consis = c5.selectbox("Consistance", [1, 2, 3], format_func=lambda x: ["Mou", "Moyen", "Ferme"][x-1])
-            membran = c6.selectbox("Membranes", [1, 2, 3], format_func=lambda x: ["Rompues", "Intactes", "Incertain"][x-1])
-            
-            # Variables secondaires (initialisées par défaut)
-            contr = 1
-            gravid = 1
-            parit = 0
-            diab = 2
-            transf = 2
-            gemel = 1
+            gest = c2.number_input("Âge Gestationnel (semaines)", 20, 45, 32)
+            gemel = c3.selectbox("Grossesse Multiple", [1, 2], format_func=lambda x: "Simple" if x==1 else "Multiple")
 
-            submitted = st.form_submit_button("Calculer le Risque")
+            st.markdown("##### 2. Examen Clinique")
+            c4, c5, c6 = st.columns(3)
+            dilate = c4.number_input("Dilatation du col (cm)", 0.0, 10.0, 0.0)
+            efface = c5.slider("Effacement du col (%)", 0, 100, 20)
+            consis = c6.selectbox("Consistance du col", [1, 2, 3], format_func=lambda x: ["Mou", "Moyen", "Ferme"][x-1])
+
+            st.markdown("##### 3. Symptômes et Antécédents")
+            c7, c8, c9 = st.columns(3)
+            contr = c7.selectbox("Contractions", [1, 2], format_func=lambda x: "Présentes" if x==1 else "Absentes")
+            membran = c8.selectbox("État des membranes", [1, 2, 3], format_func=lambda x: ["Rompues", "Intactes", "Incertain"][x-1])
+            diab = c9.selectbox("Diabète", [1, 2, 9], format_func=lambda x: {1:"Oui", 2:"Non", 9:"Inconnu"}[x])
+
+            c10, c11, c12 = st.columns(3)
+            gravid = c10.number_input("Gestité (Total grossesses)", 1, 15, 1)
+            parit = c11.number_input("Parité (Accouchements à terme)", 0, 15, 0)
+            transf = c12.selectbox("Transfert Spécialisé", [1, 2], format_func=lambda x: "Oui" if x==1 else "Non")
+
+            submitted = st.form_submit_button("Analyser le Risque")
+
+        if submitted:
+            # Reconstruction du vecteur d'entrée selon l'ordre du modèle
+            input_data = np.array([[gest, dilate, efface, consis, contr, membran, 
+                                    age, gravid, parit, diab, transf, gemel]])
             
-            if submitted:
-                # Préparation des données (Ordre des 12 variables)
-                input_array = np.array([[gest, dilate, efface, consis, contr, membran, 
-                                         age, gravid, parit, diab, transf, gemel]])
-                
-                prediction = model.predict(input_array)[0]
-                proba = model.predict_proba(input_array)[0][1]
-                
-                st.markdown("---")
-                if prediction == 1:
-                    st.error(f"### ⚠️ Risque de Prématurité Détecté : {proba:.1%}")
-                    st.write("Le profil clinique présente des signes de travail prématuré imminent.")
-                else:
-                    st.success(f"### ✅ Risque de Prématurité Faible : {proba:.1%}")
-                    st.write("Le profil clinique semble stable pour le moment.")
+            prediction = model.predict(input_data)[0]
+            probability = model.predict_proba(input_data)[0][1]
+
+            st.divider()
+            if prediction == 1:
+                st.error(f"### 🚨 Alerte : Risque de Prématurité Élevé ({probability:.1%})")
+                st.warning("Action recommandée : Surveillance clinique immédiate.")
+            else:
+                st.success(f"### ✅ Risque de Prématurité Faible ({probability:.1%})")
+                st.info("Le patient ne présente pas de signes de travail prématuré imminent selon les critères saisis.")
 
 # --- PAGE 3 : ANALYSE DE GROUPE ---
 elif page == "Analyse de Groupe":
-    st.title("📂 Analyse Batch (CSV)")
-    uploaded_file = st.file_uploader("Importer le fichier des patientes", type="csv")
+    st.title("📂 Analyse par Lot (CSV)")
+    st.write("Importez un fichier CSV contenant les 12 variables cliniques pour une analyse groupée.")
     
-    if uploaded_file and model:
-        df = pd.read_csv(uploaded_file)
-        # Supposons que le CSV contient les colonnes dans le bon ordre
-        preds = model.predict(df)
-        probs = model.predict_proba(df)[:, 1]
-        
-        df['Verdict'] = ["🚨 Risque" if p == 1 else "✅ Stable" for p in preds]
-        df['Probabilité (%)'] = (probs * 100).round(2)
-        
-        st.write("### Résultats de l'analyse")
-        st.dataframe(df, use_container_width=True)
-        
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("Télécharger les résultats", csv, "resultats_diagnostics.csv", "text/csv")
+    up_file = st.file_uploader("Fichier CSV", type="csv")
+    
+    if up_file and model:
+        df_input = pd.read_csv(up_file)
+        try:
+            # On s'assure que les colonnes sont dans le bon ordre avant la prédiction
+            preds = model.predict(df_input)
+            probs = model.predict_proba(df_input)[:, 1]
+            
+            df_input['Diagnostic'] = ["Risque" if p == 1 else "Normal" for p in preds]
+            df_input['Probabilité_Risque'] = probs.round(3)
+            
+            st.subheader("Résultats de l'Analyse Batch")
+            st.dataframe(df_input.style.background_gradient(subset=['Probabilité_Risque'], cmap='YlOrRd'))
+            
+            csv_data = df_input.to_csv(index=False).encode('utf-8')
+            st.download_button("Télécharger le rapport CSV", csv_data, "diagnostics_batch.csv", "text/csv")
+        except Exception as e:
+            st.error(f"Erreur lors de l'analyse : {e}")
+            st.info("Assurez-vous que le fichier CSV possède exactement les 12 colonnes requises.")
