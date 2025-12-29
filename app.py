@@ -139,28 +139,41 @@ elif page == "Diagnostic Patient":
                 st.success(f"### ✅ Risque de Prématurité Faible ({probability:.1%})")
                 st.info("Le patient ne présente pas de signes de travail prématuré imminent selon les critères saisis.")
 
-# --- PAGE 3 : ANALYSE DE GROUPE ---
+# --- PAGE 3 : ANALYSE DE GROUPE (CORRIGÉE) ---
 elif page == "Analyse de Groupe":
     st.title("📂 Analyse par Lot (CSV)")
-    st.write("Importez un fichier CSV contenant les 12 variables cliniques pour une analyse groupée.")
+    st.write("Importez un fichier CSV contenant les 12 variables cliniques.")
     
     up_file = st.file_uploader("Fichier CSV", type="csv")
     
     if up_file and model:
         df_input = pd.read_csv(up_file)
+        
+        # Liste exacte des colonnes attendues par votre modèle (Ordre alphabétique souvent par défaut)
+        # Vérifiez cet ordre avec model.feature_names_in_ si disponible
+        expected_columns = [
+            'AGE', 'CONSIS', 'CONTR', 'DIAB', 'DILATE', 'EFFACE', 
+            'GEMEL', 'GEST', 'GRAVID', 'MEMBRAN', 'PARIT', 'TRANSF'
+        ]
+        
         try:
-            # On s'assure que les colonnes sont dans le bon ordre avant la prédiction
-            preds = model.predict(df_input)
-            probs = model.predict_proba(df_input)[:, 1]
+            # Réordonner les colonnes du CSV pour correspondre au modèle
+            df_reordered = df_input[expected_columns]
             
-            df_input['Diagnostic'] = ["Risque" if p == 1 else "Normal" for p in preds]
-            df_input['Probabilité_Risque'] = probs.round(3)
+            preds = model.predict(df_reordered)
+            probs = model.predict_proba(df_reordered)[:, 1]
             
-            st.subheader("Résultats de l'Analyse Batch")
+            df_input['Diagnostic'] = ["🚨 Risque" if p == 1 else "✅ Stable" for p in preds]
+            df_input['Probabilité_Risque'] = (probs * 100).round(2)
+            
+            st.subheader("Résultats de l'Analyse")
             st.dataframe(df_input.style.background_gradient(subset=['Probabilité_Risque'], cmap='YlOrRd'))
             
             csv_data = df_input.to_csv(index=False).encode('utf-8')
-            st.download_button("Télécharger le rapport CSV", csv_data, "diagnostics_batch.csv", "text/csv")
+            st.download_button("Télécharger le rapport", csv_data, "resultats.csv", "text/csv")
+            
+        except KeyError as e:
+            st.error(f"Erreur : Le fichier CSV ne contient pas la colonne {e}")
+            st.info(f"Colonnes attendues : {', '.join(expected_columns)}")
         except Exception as e:
-            st.error(f"Erreur lors de l'analyse : {e}")
-            st.info("Assurez-vous que le fichier CSV possède exactement les 12 colonnes requises.")
+            st.error(f"Une erreur est survenue : {e}")
